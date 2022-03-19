@@ -17,8 +17,8 @@ import (
 
 var (
 	daysOfTheWeek = []time.Weekday{time.Sunday, time.Monday, time.Tuesday, time.Wednesday, time.Thursday, time.Friday, time.Saturday}
-	UsingLibMap   = make(map[string]string)
-	WithoutLibMap = make(map[string]string)
+	UsingLibMap   = make(map[string]time.Time)
+	WithoutLibMap = make(map[string]time.Time)
 )
 
 type DayINFO struct {
@@ -37,14 +37,15 @@ func main() {
 
 	startYear := 1901
 	endYear := 2000
+	fallOnDate := 1
+	checkDay := time.Sunday
 
 	fmt.Printf("INPUT : %d-%d\n", startYear, endYear)
-	counter1 := UsingLib(startYear, endYear, time.Sunday)
+	counter1 := UsingLib(startYear, endYear, fallOnDate, checkDay)
 	fmt.Printf("UsingLib   : Sundays that fell on the first of the month between %d and %d is %d\n", startYear, endYear, counter1)
 
-	counter2 := WithoutLib(startYear, endYear, time.Sunday)
+	counter2 := WithoutLib(startYear, endYear, fallOnDate, checkDay)
 	fmt.Printf("withoutLib : Sundays that fell on the first of the month between %d and %d is %d\n", startYear, endYear, counter2)
-
 }
 
 func Init() {
@@ -58,7 +59,7 @@ func Init() {
 	}
 }
 
-func UsingLib(StartYear, EndYear int, checkDay time.Weekday) int {
+func UsingLib(StartYear, EndYear int, fallOnDate int, checkDay time.Weekday) int {
 	startDate, err := time.Parse("2006-01-02", fmt.Sprintf("%d-01-01", StartYear))
 	if err != nil {
 		panic(err)
@@ -72,9 +73,10 @@ func UsingLib(StartYear, EndYear int, checkDay time.Weekday) int {
 	counter := 0
 	currentDate := startDate
 	for !currentDate.After(endDate) {
-		if currentDate.Day() == 1 && currentDate.Weekday() == checkDay {
+		dayInConsideration := currentDate.AddDate(0, 0, fallOnDate-1)
+		if dayInConsideration.Day() == fallOnDate && dayInConsideration.Weekday() == checkDay {
 			//fmt.Println("L:", currentDate.Format("02-01-2006"), " is a Sunday")
-			UsingLibMap[currentDate.Format("02/01/2006")] = "sunday"
+			UsingLibMap[currentDate.Format("02/01/2006")] = dayInConsideration
 			counter++
 		}
 		currentDate = currentDate.AddDate(0, 1, 0)
@@ -82,7 +84,7 @@ func UsingLib(StartYear, EndYear int, checkDay time.Weekday) int {
 	return counter
 }
 
-func WithoutLib(StartYear, EndYear int, checkDay time.Weekday) int {
+func WithoutLib(StartYear, EndYear int, fallOnDate int, checkDay time.Weekday) int {
 
 	counter := 0
 	//Expected outcome is monthStart = jan 1 of start year
@@ -91,11 +93,15 @@ func WithoutLib(StartYear, EndYear int, checkDay time.Weekday) int {
 	for year := StartYear; year <= EndYear; year++ {
 		monthList, _ := loadMonths(year)
 		for m, val := range monthList {
+			dayInConsideration := (monthStart - 1) + fallOnDate
 			//if monthStart%7 == 0 { //This would work only for sundays because 0 +1 +2 +3 +4 +5 +6 +7 = 0 -1 -2 -3 -4 -5 -6 -7
-			if findDay(monthStart%7) == checkDay {
+			if findDay(dayInConsideration%7) == checkDay {
 				counter++
-				//fmt.Printf("W: 01/%02d/%d is a Sunday\n", m+1, year)
-				WithoutLibMap[fmt.Sprintf("01/%02d/%d", m+1, year)] = checkDay.String()
+				currentDay, err := time.Parse("2006-01-02", fmt.Sprintf("%d-%02d-%02d", year, m+1, fallOnDate))
+				if err != nil {
+					panic(err)
+				}
+				WithoutLibMap[fmt.Sprintf("%02d/%02d/%d", fallOnDate, m+1, year)] = currentDay
 			}
 			if year == EndYear && m == 11 { //Adding 31 december days will result in jan of next year
 				continue
